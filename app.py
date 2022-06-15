@@ -1,9 +1,8 @@
-from flask import Flask, request, render_template, redirect, flash
+from flask import Flask, request, render_template, redirect, flash, session
 from surveys import satisfaction_survey as survey
 
-responses = []
-
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "password!"  
 
 @app.route('/')
 def show_surveys():
@@ -11,15 +10,20 @@ def show_surveys():
 
     return render_template("survey_start.html", survey=survey)
 
+
 @app.route('/begin', methods=["POST"])
 def begin_survey():
-    """Begin survey"""
+    """Begin survey and clear session of responses"""
+
+    session["responses"] = []
 
     return redirect("/questions/0")
+
 
 @app.route('/questions/<int:qid>')
 def show_question(qid):
     """Display the question"""
+    responses = session.get("responses")
 
     if (responses is None):
         #no responses -> redirect to home page
@@ -36,17 +40,24 @@ def show_question(qid):
 
     return render_template("question.html", qid=qid, question=survey.questions[qid])
 
+
 @app.route('/answer', methods=["POST"])
 def handle_question():
     """Get user answer and redirect"""
 
+    #get response from user 
     choice = request.form['answer']
+
+    #add response to the session
+    responses = session["responses"]
     responses.append(choice)
+    session["responses"] = responses
 
     if len(responses) == len(survey.questions):
         return redirect("/completed")
 
     return redirect(f"/questions/{len(responses)}")
+
 
 @app.route('/completed')
 def end_survey():
